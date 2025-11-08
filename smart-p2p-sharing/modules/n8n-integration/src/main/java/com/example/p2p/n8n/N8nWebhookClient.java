@@ -9,12 +9,15 @@ import okhttp3.Response;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.StringJoiner;
 
 /**
  * Simple wrapper around the n8n webhook endpoint used to trigger automations with
  * metadata generated from the file classification stage.
  */
 public class N8nWebhookClient {
+
+    private static final MediaType JSON = MediaType.parse("application/json");
 
     private final OkHttpClient httpClient;
     private final String webhookUrl;
@@ -25,8 +28,8 @@ public class N8nWebhookClient {
     }
 
     public void triggerWorkflow(Path file, Map<String, Object> metadata) throws IOException {
-        String payload = metadata.toString();
-        RequestBody body = RequestBody.create(payload, MediaType.parse("application/json"));
+        String payload = buildJsonPayload(file, metadata);
+        RequestBody body = RequestBody.create(payload, JSON);
         Request request = new Request.Builder()
                 .url(webhookUrl)
                 .post(body)
@@ -36,5 +39,26 @@ public class N8nWebhookClient {
                 throw new IOException("Failed to trigger n8n webhook: " + response);
             }
         }
+    }
+
+    private String buildJsonPayload(Path file, Map<String, Object> metadata) {
+        StringJoiner joiner = new StringJoiner(",", "{", "}");
+        joiner.add("\"filePath\":\"" + escape(file.toAbsolutePath().toString()) + "\"");
+        metadata.forEach((key, value) -> {
+            String val = value == null ? "null" : toJsonValue(value);
+            joiner.add("\"" + escape(key) + "\":" + val);
+        });
+        return joiner.toString();
+    }
+
+    private String toJsonValue(Object value) {
+        if (value instanceof Number || value instanceof Boolean) {
+            return value.toString();
+        }
+        return "\"" + escape(String.valueOf(value)) + "\"";
+    }
+
+    private String escape(String raw) {
+        return raw.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 }

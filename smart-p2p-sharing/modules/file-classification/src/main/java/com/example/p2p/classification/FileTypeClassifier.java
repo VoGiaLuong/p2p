@@ -22,7 +22,7 @@ public class FileTypeClassifier {
             mime = Files.probeContentType(file);
         } catch (Exception ignored) {
         }
-        String label = extensionLabels.getOrDefault(getExtension(file), mime);
+        String label = extensionLabels.getOrDefault(getExtension(file), "uncategorized");
         return new ClassificationResult(label, mime);
     }
 

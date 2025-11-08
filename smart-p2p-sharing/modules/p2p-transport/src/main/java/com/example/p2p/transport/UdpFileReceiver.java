@@ -3,7 +3,7 @@ package com.example.p2p.transport;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -32,8 +32,13 @@ public class UdpFileReceiver {
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                 try {
                     socket.receive(packet);
-                    buffers.add(packet.getData());
-                } catch (SocketException e) {
+                    byte[] actual = new byte[packet.getLength()];
+                    System.arraycopy(packet.getData(), 0, actual, 0, packet.getLength());
+                    buffers.add(actual);
+                    if (packet.getLength() < chunkSize) {
+                        receiving = false;
+                    }
+                } catch (SocketTimeoutException e) {
                     receiving = false;
                 }
             }
@@ -46,6 +51,7 @@ public class UdpFileReceiver {
             System.arraycopy(chunk, 0, merged, offset, chunk.length);
             offset += chunk.length;
         }
+        Files.createDirectories(destination.getParent());
         Files.write(destination, merged);
         return destination;
     }
