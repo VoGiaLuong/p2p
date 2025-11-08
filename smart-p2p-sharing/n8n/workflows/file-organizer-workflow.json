@@ -1,0 +1,141 @@
+{
+  "name": "Smart P2P File Organizer",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "file-received",
+        "options": {}
+      },
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const fileName = $json.fileName || 'unknown';\nconst extension = fileName.includes('.') ? fileName.split('.').pop().toLowerCase() : 'others';\nreturn [{ fileName, extension }];"
+      },
+      "id": "Extract Extension",
+      "name": "Extract Extension",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "propertyName": "category",
+        "rules": [
+          { "value": "documents", "operation": "contains", "type": "string", "value2": "pdf doc docx xls xlsx ppt pptx" },
+          { "value": "images", "operation": "contains", "type": "string", "value2": "jpg jpeg png gif" },
+          { "value": "videos", "operation": "contains", "type": "string", "value2": "mp4 avi mkv" },
+          { "value": "audio", "operation": "contains", "type": "string", "value2": "mp3 wav flac" },
+          { "value": "archives", "operation": "contains", "type": "string", "value2": "zip rar 7z" },
+          { "value": "code", "operation": "contains", "type": "string", "value2": "java py js" }
+        ],
+        "default": "others",
+        "matching": "single"
+      },
+      "id": "Classify",
+      "name": "Classify",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "command": "mkdir -p /shared-storage/organized/{{$json.category}}"
+      },
+      "id": "Ensure Directory",
+      "name": "Ensure Directory",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [940, 200]
+    },
+    {
+      "parameters": {
+        "command": "mv {{$json.filePath || '/shared-storage/incoming/' + $json.fileName}} /shared-storage/organized/{{$json.category}}/{{$json.fileName}}"
+      },
+      "id": "Move File",
+      "name": "Move File",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1180, 200]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": false,
+        "values": {
+          "string": [
+            {
+              "name": "message",
+              "value": "File {{$json.fileName}} organised into {{$json.category}} at {{$json.timestamp}}"
+            }
+          ]
+        }
+      },
+      "id": "Notify",
+      "name": "Notify",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1400, 200]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Extension",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Extension": {
+      "main": [
+        [
+          {
+            "node": "Classify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify": {
+      "main": [
+        [
+          {
+            "node": "Ensure Directory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ensure Directory": {
+      "main": [
+        [
+          {
+            "node": "Move File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move File": {
+      "main": [
+        [
+          {
+            "node": "Notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
